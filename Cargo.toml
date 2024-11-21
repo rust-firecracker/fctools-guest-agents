@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = ["http-guest-agent"]
+
+[workspace.dependencies]
+tokio = { version = "1.41.1", features = ["rt", "macros"] }
+tokio-vsock = "0.6.0"
+
+[profile.dev]
+debug = false
+panic = "abort"
+strip = "debuginfo"
+
+[profile.release]
+lto = "fat"
+strip = "symbols"
+codegen-units = 1
