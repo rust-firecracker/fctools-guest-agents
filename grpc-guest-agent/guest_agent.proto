@@ -1,0 +1,17 @@
+syntax = "proto3";
+package guest_agent;
+
+message Ping {
+    uint32 Number = 1;
+}
+
+message Pong {
+    uint32 Number = 1;
+}
+
+service GuestAgentService {
+    rpc Unary(Ping) returns (Pong);
+    rpc ClientStreaming(stream Ping) returns (Pong);
+    rpc ServerStreaming(Ping) returns (stream Pong);
+    rpc DuplexStreaming(stream Ping) returns (stream Pong);
+}

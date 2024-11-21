@@ -1,0 +1,15 @@
+[package]
+name = "grpc-guest-agent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+tokio-vsock = { workspace = true }
+tokio-stream = "0.1.16"
+tonic = "0.12.3"
+prost = "0.13.3"
+pin-project-lite = "0.2.15"
+
+[build-dependencies]
+tonic-build = "0.12.3"

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["http-guest-agent"]
+members = ["grpc-guest-agent", "http-guest-agent"]
 
 [workspace.dependencies]
 tokio = { version = "1.41.1", features = ["rt", "macros"] }

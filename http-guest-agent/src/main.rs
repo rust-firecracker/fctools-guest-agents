@@ -38,7 +38,7 @@ async fn main() {
     let mut make_service = router.into_make_service();
 
     loop {
-        let (stream, _) = listener
+        let (stream, peer_addr) = listener
             .accept()
             .await
             .expect("Could not accept vsock connection");
@@ -46,6 +46,7 @@ async fn main() {
             .call(&stream)
             .await
             .expect("Could not call make service to produce axum router");
+        println!("Accepted connection from: {peer_addr}");
 
         tokio::task::spawn(async move {
             let tokio_io = TokioIo::new(stream);
