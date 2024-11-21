@@ -81,6 +81,7 @@ impl AsyncWrite for VsockStreamConnectable {
 
 #[derive(Debug, Clone)]
 pub struct VsockConnectInfo {
+    #[allow(unused)]
     pub peer_addr: Option<VsockAddr>,
 }
 

@@ -1,10 +1,11 @@
-use std::pin::Pin;
+use std::{pin::Pin, time::Duration};
 
 use definitions::{
     guest_agent_service_server::{GuestAgentService, GuestAgentServiceServer},
     Ping, Pong,
 };
-use tokio_stream::Stream;
+use tokio::sync::mpsc::unbounded_channel;
+use tokio_stream::{wrappers::UnboundedReceiverStream, Stream};
 use tokio_vsock::{VsockAddr, VsockListener, VMADDR_CID_ANY};
 use tonic::{transport::Server, Request, Response, Status, Streaming};
 use transport::VsockListenerStream;
@@ -13,6 +14,9 @@ mod transport;
 
 mod definitions {
     tonic::include_proto!("guest_agent");
+
+    pub(crate) const FILE_DESCRIPTOR_SET: &[u8] =
+        tonic::include_file_descriptor_set!("guest_agent_descriptor");
 }
 
 struct App;
@@ -47,7 +51,21 @@ impl GuestAgentService for App {
         &self,
         request: Request<Ping>,
     ) -> Result<Response<Self::ServerStreamingStream>, Status> {
-        todo!()
+        let (stream, rx) = unbounded_channel();
+        let request = request.into_inner();
+
+        tokio::task::spawn(async move {
+            for _ in 1..=request.number {
+                stream
+                    .send(Ok(Pong {
+                        number: request.number,
+                    }))
+                    .expect("Could not respond with pong over stream");
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        });
+
+        Ok(Response::new(Box::pin(UnboundedReceiverStream::new(rx))))
     }
 
     type DuplexStreamingStream = Pin<Box<dyn Stream<Item = Result<Pong, Status>> + Send + 'static>>;
@@ -56,7 +74,20 @@ impl GuestAgentService for App {
         &self,
         request: Request<Streaming<Ping>>,
     ) -> Result<Response<Self::DuplexStreamingStream>, Status> {
-        todo!()
+        let mut recv_stream = request.into_inner();
+        let (send_stream, rx) = unbounded_channel();
+
+        tokio::task::spawn(async move {
+            while let Ok(Some(ping)) = recv_stream.message().await {
+                send_stream
+                    .send(Ok(Pong {
+                        number: ping.number,
+                    }))
+                    .expect("Could not respond with pong over stream");
+            }
+        });
+
+        Ok(Response::new(Box::pin(UnboundedReceiverStream::new(rx))))
     }
 }
 
@@ -67,8 +98,18 @@ async fn main() {
     let vsock_listener = VsockListener::bind(VsockAddr::new(VMADDR_CID_ANY, VSOCK_PORT))
         .expect("Could not bind vsock");
     let vsock_listener_stream = VsockListenerStream::new(vsock_listener);
+    let v1alpha_reflection = tonic_reflection::server::Builder::configure()
+        .register_encoded_file_descriptor_set(definitions::FILE_DESCRIPTOR_SET)
+        .build_v1alpha()
+        .expect("Could not build v1alpha server reflection");
+    let v1_reflection = tonic_reflection::server::Builder::configure()
+        .register_encoded_file_descriptor_set(definitions::FILE_DESCRIPTOR_SET)
+        .build_v1()
+        .expect("Could not build v1 server reflection");
 
     Server::builder()
+        .add_service(v1alpha_reflection)
+        .add_service(v1_reflection)
         .add_service(GuestAgentServiceServer::new(App))
         .serve_with_incoming(vsock_listener_stream)
         .await
