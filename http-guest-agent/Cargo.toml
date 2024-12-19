@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 tokio = { workspace = true }
-tokio-vsock = { workspace = true }
+tokio-vsock = "0.6.0"
 axum = "0.7.9"
 serde = { version = "1.0.215", features = ["derive"] }
 tower-service = "0.3.3"

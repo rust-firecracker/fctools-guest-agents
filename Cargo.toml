@@ -4,7 +4,6 @@ members = ["grpc-guest-agent", "http-guest-agent"]
 
 [workspace.dependencies]
 tokio = { version = "1.41.1", features = ["rt", "macros"] }
-tokio-vsock = "0.6.0"
 
 [profile.dev]
 debug = false

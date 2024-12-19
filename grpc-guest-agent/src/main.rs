@@ -8,9 +8,6 @@ use tokio::sync::mpsc::unbounded_channel;
 use tokio_stream::{wrappers::UnboundedReceiverStream, Stream};
 use tokio_vsock::{VsockAddr, VsockListener, VMADDR_CID_ANY};
 use tonic::{transport::Server, Request, Response, Status, Streaming};
-use transport::VsockListenerStream;
-
-mod transport;
 
 mod definitions {
     tonic::include_proto!("guest_agent");
@@ -97,21 +94,15 @@ const VSOCK_PORT: u32 = 9000;
 async fn main() {
     let vsock_listener = VsockListener::bind(VsockAddr::new(VMADDR_CID_ANY, VSOCK_PORT))
         .expect("Could not bind vsock");
-    let vsock_listener_stream = VsockListenerStream::new(vsock_listener);
-    let v1alpha_reflection = tonic_reflection::server::Builder::configure()
-        .register_encoded_file_descriptor_set(definitions::FILE_DESCRIPTOR_SET)
-        .build_v1alpha()
-        .expect("Could not build v1alpha server reflection");
     let v1_reflection = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(definitions::FILE_DESCRIPTOR_SET)
         .build_v1()
         .expect("Could not build v1 server reflection");
 
     Server::builder()
-        .add_service(v1alpha_reflection)
         .add_service(v1_reflection)
         .add_service(GuestAgentServiceServer::new(App))
-        .serve_with_incoming(vsock_listener_stream)
+        .serve_with_incoming(vsock_listener.incoming())
         .await
         .expect("Could not serve gRPC over vsock");
 }
